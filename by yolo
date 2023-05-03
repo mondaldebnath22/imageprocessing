@@ -1,0 +1,43 @@
+import cv2
+import pytesseract
+from yolov5 import detect  # yolov5.detect is a function to detect objects using YOLOv5
+
+# Load the image
+img = cv2.imread('image.jpg')
+
+# Resize the image
+img = cv2.resize(img, (512, 512))
+
+# Detect objects using YOLOv5
+results = detect(img)
+
+# Extract ROIs from the results
+covers = []
+paragraphs = []
+titles = []
+for result in results:
+    x1, y1, x2, y2, class_id = result
+    roi = img[y1:y2, x1:x2]
+    if class_id == 0:
+        covers.append(roi)
+    elif class_id == 1:
+        paragraphs.append(roi)
+    elif class_id == 2:
+        titles.append(roi)
+
+# Recognize text in the ROIs using PyTesseract OCR
+for roi in paragraphs + titles:
+    text = pytesseract.image_to_string(roi)
+
+    # Filter out short or empty texts
+    if len(text.strip()) > 10:
+        if roi in paragraphs:
+            print('Paragraph:', text)
+        else:
+            print('Title:', text)
+
+# Display the results
+for cover in covers:
+    cv2.imshow('Cover', cover)
+    cv2.waitKey(0)
+cv2.destroyAllWindows()
