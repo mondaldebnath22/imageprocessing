@@ -1,0 +1,40 @@
+import cv2
+import PyPDF2
+import io
+from PIL import Image
+
+# Open the PDF file
+with open('C:\\Users\\My Pc\\.ipython\\profile_default\\db\\SN5-013017_table.pdf', 'rb') as f:
+    pdf_reader = PyPDF2.PdfReader(f)
+
+    # Iterate over each page
+    for page_num in range(len(pdf_reader.pages)):
+        page = pdf_reader.pages(page_num)
+        
+        # Extract the images from the page
+        xObject = page['/Resources']['/XObject'].getObject()
+        for obj in xObject:
+            if xObject[obj]['/Subtype'] == '/Image':
+                size = (xObject[obj]['/Width'], xObject[obj]['/Height'])
+                
+                # Check if xObject[obj] has data
+                if "/Length" in xObject[obj]:
+                    data = xObject[obj].getData()
+                    if xObject[obj]['/ColorSpace'] == '/DeviceRGB':
+                        mode = "RGB"
+                    else:
+                        mode = "P"
+                    image = Image.frombytes(mode, size, data)
+                    
+                    # Convert the image to grayscale and apply thresholding
+                    gray = cv2.cvtColor(cv2.UMat(image), cv2.COLOR_RGB2GRAY)
+                    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+
+                    # Find contours and extract paragraphs
+                    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                    for i in range(len(contours)):
+                        area = cv2.contourArea(contours[i])
+                        if area > 10000:
+                            x, y, w, h = cv2.boundingRect(contours[i])
+                            paragraph = image.crop((x, y, x + w, y + h))
+                            paragraph.save(f"page{page_num}_paragraph{i}.jpg", "JPEG")
